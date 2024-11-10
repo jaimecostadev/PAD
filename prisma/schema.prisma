@@ -1,10 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-
 datasource db {
   provider = "mongodb"
   url      = env("DATABASE_URL")
@@ -15,30 +11,404 @@ generator client {
 }
 
 model Funcionario {
-  id     String @id @default(auto()) @map("_id") @db.ObjectId
-  nome   String
-  email  String @unique
-  login  String @unique
-  senha  String
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  nome      String
+  email     String     @unique
+  senha     String
+  foto      String?    // Adicionado para armazenar o URL ou caminho da foto do funcionário
+  crm       String?    // Adicionado para armazenar o CRM (para médicos), pode ser opcional
+  cargo     String     // Adicionado para armazenar o cargo ou posição do funcionário, como "Médico", "Enfermeiro", etc.
+  
+  atestadosEmitidos AtestadoMedico[]
+  pacientes Paciente[]
 }
 
 model Paciente {
-  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
-  nome               String
-  dataNascimento     DateTime
-  sexo               Sexo
-  altura             Float
-  peso               Float
-  foto               String?  // O campo pode ser opcional, por isso o "?"
-  endereco           String
-  telefoneContato    String
-  telefoneEmergencia String
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                      String                    @id @default(auto()) @map("_id") @db.ObjectId
+  nome                    String
+  cpf                     String?
+  dataNascimento          DateTime
+  sexo                    Sexo
+  altura                  Float
+  peso                    Float
+  imc                     Float?
+  foto                    String?
+  idade                   Int
+  endereco                String
+  telefoneContato         String
+  telefoneEmergencia      String
+  funcionarioId           String                    @db.ObjectId
+  funcionario             Funcionario               @relation(fields: [funcionarioId], references: [id])
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+
+  // Relacionamentos existentes
+  dadosDoPaciente         DadosDoPaciente?
+  informacoesMedicas      InformacoesMedicas[]
+  soap                    SOAP[]
+  prescricoesMedicas      PrescricaoMedica[]
+  solicitacoesCompras     SolicitacaoCompra[]
+  pedidosDeExames         PedidoDeExames[]
+  checklistProcedimentos  CheckListProcedimentos[] 
+  atestados               AtestadoMedico[]
+  atestadoPDFs            AtestadoPDF[]
+
+  // Novos relacionamentos
+  examesRealizados        ExameRealizado[]
+  historicoVacinal        HistoricoVacinal[]
+  medicamentosAnteriores  MedicamentoAnterior[]
+  internacoesAltas        InternacaoAlta[]
+  procedimentosRealizados ProcedimentoRealizado[]
+  historicoConsultas      HistoricoConsulta[]
+  notasEvolucoes          NotaEvolucao[]
 }
 
 enum Sexo {
   MASCULINO
-  FEMININO
+  FEMININO
 }
+
+
+model InformacoesMedicas {
+  id                   String   @id @default(auto()) @map("_id") @db.ObjectId
+  diagnosticoPrincipal String?
+  alergiasRestricoes   String?
+  planoSaude           String?
+  consultas            Boolean  
+  internacoes          Boolean  
+  dataUltimaConsulta   DateTime?
+  descricao            String?
+  pacienteId           String   @db.ObjectId 
+  paciente             Paciente @relation(fields: [pacienteId], references: [id])
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model DadosDoPaciente {
+  id                    String     @id @default(auto()) @map("_id") @db.ObjectId
+  estadoCivil           String?
+  naturalidade          String?
+  rendaMensal           String?
+  fonteDeRenda          String?
+  dependentesFinanceiros Int?
+  condicoesMoradia      String?
+  transporteDisponivel  String?
+  acessibilidade        String?
+  doencasCronicas       String?
+  tratamentosRegulares  String?
+  dependenciaFuncional  String?
+  necessidadeEquipamentos String?
+  responsavel           String?
+  apoioFamiliar         String?
+  planoDeSaude          String?
+  beneficiosSociais     String?
+
+  pacienteId            String     @db.ObjectId @unique
+  paciente              Paciente   @relation(fields: [pacienteId], references: [id])
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+}
+
+model SOAP {
+  id                      String    @id @default(auto()) @map("_id") @db.ObjectId
+  nomeCompleto            String
+  dataResultado           DateTime
+  responsavelPelasRespostas String?
+  sintomasEQueixas        String?   
+  sinaisVitais            String?
+  resultadoExames         String?   
+  diagnostico             String?   
+  proximasEtapas          String?   
+
+  pacienteId              String    @db.ObjectId
+  paciente                Paciente  @relation(fields: [pacienteId], references: [id])
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+model PrescricaoMedica {
+  id                  String                    @id @default(auto()) @map("_id") @db.ObjectId
+  nomePaciente        String
+  dataPedido          DateTime
+  diagnosticoPrincipal String
+  doseEvia            String
+  frequencia          String
+  duracaoDoTratamento String
+  comentarios         String?
+  pacienteId          String                    @db.ObjectId
+  paciente            Paciente                  @relation(fields: [pacienteId], references: [id])
+  medicamentos        PrescricaoMedicamento[] 
+}
+
+model MedicamentoPrescricao {
+  id               String                   @id @default(auto()) @map("_id") @db.ObjectId
+  nome             String
+  descricao        String?
+  prescricoes      PrescricaoMedicamento[]
+}
+
+model PrescricaoMedicamento {
+  id               String              @id @default(auto()) @map("_id") @db.ObjectId
+  prescricaoId     String              @db.ObjectId
+  medicamentoId    String              @db.ObjectId
+  prescricao       PrescricaoMedica    @relation(fields: [prescricaoId], references: [id])
+  medicamento      MedicamentoPrescricao @relation(fields: [medicamentoId], references: [id])
+}
+
+model SolicitacaoCompra {
+  id               String                        @id @default(auto()) @map("_id") @db.ObjectId
+  nomeCompleto     String
+  idade            Int
+  cpf              String                        @unique
+  cep              String
+  cidade           String
+  estado           String
+  bairro           String
+  enderecoPaciente String
+  numero           String
+
+  pacienteId       String                        @db.ObjectId
+  paciente         Paciente                      @relation(fields: [pacienteId], references: [id])
+
+  insumos          SolicitacaoCompraInsumo[]
+  medicamentos     SolicitacaoCompraMedicamento[]
+  equipamentos     SolicitacaoCompraEquipamento[]
+
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
+}
+
+model Insumo {
+  id               String                        @id @default(auto()) @map("_id") @db.ObjectId
+  nome             String
+  descricao        String?
+  solicitacoes     SolicitacaoCompraInsumo[]
+}
+
+model MedicamentoSolicitacao {
+  id               String                        @id @default(auto()) @map("_id") @db.ObjectId
+  nome             String
+  descricao        String?
+  solicitacoes     SolicitacaoCompraMedicamento[]
+}
+
+model Equipamento {
+  id               String                        @id @default(auto()) @map("_id") @db.ObjectId
+  nome             String
+  descricao        String?
+  solicitacoes     SolicitacaoCompraEquipamento[]
+}
+
+model SolicitacaoCompraInsumo {
+  id               String                        @id @default(auto()) @map("_id") @db.ObjectId
+  solicitacaoId    String                        @db.ObjectId
+  insumoId         String                        @db.ObjectId
+  quantidade       Int
+  solicitacao      SolicitacaoCompra             @relation(fields: [solicitacaoId], references: [id])
+  insumo           Insumo                        @relation(fields: [insumoId], references: [id])
+}
+
+model SolicitacaoCompraMedicamento {
+  id               String                        @id @default(auto()) @map("_id") @db.ObjectId
+  solicitacaoId    String                        @db.ObjectId
+  medicamentoId    String                        @db.ObjectId
+  quantidade       Int
+  solicitacao      SolicitacaoCompra             @relation(fields: [solicitacaoId], references: [id])
+  medicamento      MedicamentoSolicitacao        @relation(fields: [medicamentoId], references: [id])
+}
+
+model SolicitacaoCompraEquipamento {
+  id               String                        @id @default(auto()) @map("_id") @db.ObjectId
+  solicitacaoId    String                        @db.ObjectId
+  equipamentoId    String                        @db.ObjectId
+  quantidade       Int
+  solicitacao      SolicitacaoCompra             @relation(fields: [solicitacaoId], references: [id])
+  equipamento      Equipamento                   @relation(fields: [equipamentoId], references: [id])
+}
+
+model CheckListProcedimentos {
+  id             String             @id @default(auto()) @map("_id") @db.ObjectId
+  nomeCompleto   String
+  codigoPaciente String
+  pacienteId     String             @db.ObjectId
+  paciente       Paciente           @relation(fields: [pacienteId], references: [id])
+
+  checklistItems CheckListProcedimentoItem[]
+  procedimentoItems ProcedimentoItem[]
+
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+}
+
+model CheckList {
+  id                String               @id @default(auto()) @map("_id") @db.ObjectId
+  nome              String
+  descricao         String?
+  checklistProcedimentoItems CheckListProcedimentoItem[]
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+}
+
+model Procedimento {
+  id                String               @id @default(auto()) @map("_id") @db.ObjectId
+  nome              String
+  descricao         String?
+  procedimentoItems ProcedimentoItem[]
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+}
+
+model CheckListProcedimentoItem {
+  id                 String             @id @default(auto()) @map("_id") @db.ObjectId
+  checkListProcedimentoId String        @db.ObjectId
+  checkListId         String            @db.ObjectId
+  checkListProcedimento CheckListProcedimentos @relation(fields: [checkListProcedimentoId], references: [id])
+  checkList            CheckList        @relation(fields: [checkListId], references: [id])
+}
+
+model ProcedimentoItem {
+  id                 String             @id @default(auto()) @map("_id") @db.ObjectId
+  checkListProcedimentoId String        @db.ObjectId
+  procedimentoId    String              @db.ObjectId
+  checkListProcedimento CheckListProcedimentos @relation(fields: [checkListProcedimentoId], references: [id])
+  procedimento      Procedimento        @relation(fields: [procedimentoId], references: [id])
+}
+
+model PedidoDeExames {
+  id                  String         @id @default(auto()) @map("_id") @db.ObjectId
+  nomeCompleto        String
+  dataPedido          DateTime
+  diagnosticoPrincipal String
+  exames              PedidoExameExame[] // Relação muitos-para-muitos com Exame
+  pacienteId          String            @db.ObjectId
+  paciente            Paciente          @relation(fields: [pacienteId], references: [id])
+
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+}
+
+model Exame {
+  id                  String           @id @default(auto()) @map("_id") @db.ObjectId
+  nome                String
+  descricao           String?
+  pedidos             PedidoExameExame[] // Relação muitos-para-muitos com PedidoDeExames
+
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+}
+
+model PedidoExameExame {
+  id                  String           @id @default(auto()) @map("_id") @db.ObjectId
+  pedidoExameId       String           @db.ObjectId
+  exameId             String           @db.ObjectId
+  pedidoExame         PedidoDeExames   @relation(fields: [pedidoExameId], references: [id])
+  exame               Exame            @relation(fields: [exameId], references: [id])
+}
+
+model AtestadoMedico {
+  id                String     @id @default(auto()) @map("_id") @db.ObjectId
+  pacienteId        String     @db.ObjectId
+  paciente          Paciente   @relation(fields: [pacienteId], references: [id])
+  nomePaciente      String
+  cpf               String
+  quantidadeDias    Int
+  dataInicio        DateTime
+  diagnostico       String
+  cid               String
+  cidade            String
+  dataAtestado      DateTime   @default(now())
+  medicoId          String     @db.ObjectId
+  medico            Funcionario @relation(fields: [medicoId], references: [id])
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+}
+
+model AtestadoPDF {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  pacienteId    String    @db.ObjectId
+  paciente      Paciente  @relation(fields: [pacienteId], references: [id])
+  nomeArquivo   String
+  caminho       String
+  dataCriacao   DateTime  @default(now())
+}
+
+model ExameRealizado {
+  id                    String     @id @default(auto()) @map("_id") @db.ObjectId
+  tipoExame             String
+  dataRealizacao        DateTime
+  resultados            String
+  pacienteId            String     @db.ObjectId
+  paciente              Paciente   @relation(fields: [pacienteId], references: [id])
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+}
+
+model HistoricoVacinal {
+  id                    String     @id @default(auto()) @map("_id") @db.ObjectId
+  registroVacinas       String
+  dataUltimaVacina      DateTime
+  resultadoRegistro     String
+  pacienteId            String     @db.ObjectId
+  paciente              Paciente   @relation(fields: [pacienteId], references: [id])
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+}
+
+model MedicamentoAnterior {
+  id                    String     @id @default(auto()) @map("_id") @db.ObjectId
+  registroMedicamento   String
+  dataRegistro          DateTime
+  resultadoPesquisa     String
+  pacienteId            String     @db.ObjectId
+  paciente              Paciente   @relation(fields: [pacienteId], references: [id])
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+}
+
+model InternacaoAlta {
+  id                    String     @id @default(auto()) @map("_id") @db.ObjectId
+  motivoInternacao      String
+  dataInternacao        DateTime
+  diagnostico           String
+  pacienteId            String     @db.ObjectId
+  paciente              Paciente   @relation(fields: [pacienteId], references: [id])
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+}
+
+model ProcedimentoRealizado {
+  id                    String     @id @default(auto()) @map("_id") @db.ObjectId
+  tipoProcedimento      String
+  dataProcedimento      DateTime
+  resultadoPesquisa     String
+  pacienteId            String     @db.ObjectId
+  paciente              Paciente   @relation(fields: [pacienteId], references: [id])
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+}
+
+model HistoricoConsulta {
+  id                    String     @id @default(auto()) @map("_id") @db.ObjectId
+  nomeProfissional      String
+  dataConsulta          DateTime
+  codigoProfissional    String
+  resumoConsulta        String
+  pacienteId            String     @db.ObjectId
+  paciente              Paciente   @relation(fields: [pacienteId], references: [id])
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+}
+
+model NotaEvolucao {
+  id                    String     @id @default(auto()) @map("_id") @db.ObjectId
+  nomeProfissional      String
+  dataUltimaAnotacao    DateTime
+  profissao             String
+  resultadoPesquisa     String
+  pacienteId            String     @db.ObjectId
+  paciente              Paciente   @relation(fields: [pacienteId], references: [id])
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+}
+
 
